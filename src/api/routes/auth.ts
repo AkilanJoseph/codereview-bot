@@ -93,7 +93,13 @@ router.get('/me', async (req, res, next) => {
     }
     const secret = process.env['JWT_SECRET'];
     if (!secret) throw new Error('JWT_SECRET not configured');
-    const payload = jwt.verify(header.slice(7), secret) as { userId: string };
+    let payload: { userId: string };
+    try {
+      payload = jwt.verify(header.slice(7), secret) as { userId: string };
+    } catch {
+      res.status(401).json({ data: null, meta: null, error: { code: 'UNAUTHORIZED', message: 'Invalid or expired token' } });
+      return;
+    }
     const user = await prisma.user.findUnique({ where: { id: payload.userId }, select: { id: true, email: true, githubLogin: true, role: true, createdAt: true } });
     if (!user) {
       res.status(404).json({ data: null, meta: null, error: { code: 'NOT_FOUND', message: 'User not found' } });

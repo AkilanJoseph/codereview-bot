@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import { apiRateLimiter } from './api/middleware/rateLimiter';
 import { errorHandler } from './api/middleware/errorHandler';
 import { requireAuth } from './api/middleware/authMiddleware';
@@ -21,13 +22,15 @@ import { logger } from './services/logger';
 const app = express();
 const PORT = process.env['PORT'] ?? 3000;
 
+app.use(helmet());
 const allowedOrigins = process.env['CORS_ORIGINS']?.split(',') ?? ['http://localhost:5173'];
-app.use(cors({ origin: allowedOrigins }));
+app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(apiRateLimiter);
-app.use(express.json());
 
-// Public routes — no auth required
+// Webhook route must be registered before express.json() so it can read the raw body for HMAC verification.
 app.use('/api/webhooks', webhookRouter);
+
+app.use(express.json());
 app.use('/api/auth', authRouter);
 app.get('/api/health', async (_req, res) => {
   try {

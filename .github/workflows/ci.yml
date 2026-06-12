@@ -38,6 +38,7 @@ jobs:
         env:
           DATABASE_URL_TEST: postgresql://postgres:test@localhost:5432/codereviewbot_test
           GITHUB_WEBHOOK_SECRET: test-secret-for-ci
+          JWT_SECRET: ci-jwt-secret-at-least-32-characters-long
           NODE_ENV: test
 
   security:
@@ -52,6 +53,16 @@ jobs:
       - run: npm ci
       - run: npm audit --audit-level=high
       - run: npx eslint src/ --rule '{"no-eval": "error"}' --max-warnings=0
+      - name: Check helmet security headers are wired
+        run: grep -r "helmet" src/index.ts || (echo "ERROR: helmet not found in index.ts" && exit 1)
+      - name: Check no hardcoded secrets in source
+        run: |
+          if grep -rE "(password|secret|token|key)\s*=\s*['\"][^'\"]{8,}['\"]" src/ --include="*.ts" \
+             | grep -v "test" | grep -v "__tests__" | grep -v "example" | grep -v ".env"; then
+            echo "ERROR: possible hardcoded secrets found"
+            exit 1
+          fi
+          echo "No hardcoded secrets detected"
 
   build:
     name: Build

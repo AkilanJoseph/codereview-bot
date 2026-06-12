@@ -16,6 +16,7 @@ export default defineConfig({
         'src/__fixtures__/**',
         'src/**/__tests__/**',
       ],
+      all: true,
       thresholds: {
         lines: 80,
         branches: 80,

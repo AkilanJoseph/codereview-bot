@@ -97,4 +97,48 @@ describe('ReviewService.runAnalysis', () => {
     expect(id).toBe('rev-new');
     expect(mockedPrisma.review.create).toHaveBeenCalled();
   });
+
+  it('completes with 0 findings when provider returns empty file list', async () => {
+    vi.mocked(mockProvider.getPrFiles).mockResolvedValue([]);
+    vi.mocked(mockEngine.analyze).mockResolvedValue([]);
+    mockedPrisma.review.update.mockResolvedValue({} as never);
+
+    const service = new ReviewService(mockProvider, mockEngine);
+    await service.runAnalysis('rev-empty', 'org', 'repo', 1, 'install-1');
+
+    expect(mockedPrisma.finding.create).not.toHaveBeenCalled();
+    expect(mockedPrisma.review.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: 'COMPLETE' }) }),
+    );
+  });
+
+  it('caches rule upsert — calls upsert once per unique ruleSlug', async () => {
+    const findings = [
+      { ruleSlug: 'sql-injection', filePath: 'a.ts', lineStart: 1, lineEnd: 1, category: 'SECURITY' as const, severity: 'CRITICAL' as const, message: 'SQL', suggestion: 'Use ORM' },
+      { ruleSlug: 'sql-injection', filePath: 'b.ts', lineStart: 2, lineEnd: 2, category: 'SECURITY' as const, severity: 'CRITICAL' as const, message: 'SQL', suggestion: 'Use ORM' },
+    ];
+    vi.mocked(mockProvider.getPrFiles).mockResolvedValue([{ filePath: 'a.ts', content: 'code' }]);
+    vi.mocked(mockEngine.analyze).mockResolvedValue(findings);
+    mockedPrisma.rule.upsert.mockResolvedValue({ id: 'rule-1', slug: 'sql-injection' } as never);
+    mockedPrisma.review.update.mockResolvedValue({} as never);
+    mockedPrisma.finding.create.mockResolvedValue({} as never);
+
+    const service = new ReviewService(mockProvider, mockEngine);
+    await service.runAnalysis('rev-cache', 'org', 'repo', 1, 'install-1');
+
+    expect(mockedPrisma.rule.upsert).toHaveBeenCalledTimes(1);
+    expect(mockedPrisma.finding.create).toHaveBeenCalledTimes(2);
+  });
+
+  it('sets status FAILED when fileProvider throws', async () => {
+    vi.mocked(mockProvider.getPrFiles).mockRejectedValue(new Error('GitHub API error'));
+    mockedPrisma.review.update.mockResolvedValue({} as never);
+
+    const service = new ReviewService(mockProvider, mockEngine);
+    await service.runAnalysis('rev-err', 'org', 'repo', 1, 'install-1');
+
+    expect(mockedPrisma.review.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: 'FAILED' }) }),
+    );
+  });
 });

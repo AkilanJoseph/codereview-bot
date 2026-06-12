@@ -95,4 +95,32 @@ describe('WebhookService.handlePrEvent', () => {
 
     expect(mockedPrisma.review.create).not.toHaveBeenCalled();
   });
+
+  it('handles synchronize action the same as opened', async () => {
+    mockedPrisma.repository.findUnique.mockResolvedValue(REPO as never);
+    mockedPrisma.review.create.mockResolvedValue({ id: 'rev-sync' } as never);
+
+    const service = new WebhookService();
+    await service.handlePrEvent({ ...openedPayload, action: 'synchronize' });
+
+    expect(mockedPrisma.review.create).toHaveBeenCalled();
+    expect(mockedQueue.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({ payload: expect.objectContaining({ reviewId: 'rev-sync' }) }),
+    );
+  });
+
+  it('falls back to repo.installId when installation is absent from payload', async () => {
+    mockedPrisma.repository.findUnique.mockResolvedValue(REPO as never);
+    mockedPrisma.review.create.mockResolvedValue({ id: 'rev-2' } as never);
+
+    const { installation: _omit, ...payloadNoInstall } = openedPayload;
+    const service = new WebhookService();
+    await service.handlePrEvent(payloadNoInstall);
+
+    expect(mockedQueue.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({ installId: REPO.installId }),
+      }),
+    );
+  });
 });

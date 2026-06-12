@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, type MockInstance } from 'vitest';
 import request from 'supertest';
+import jwt from 'jsonwebtoken';
 
 vi.mock('../../../db/client', () => ({
   prisma: {
@@ -125,5 +126,46 @@ describe('POST /api/auth/login', () => {
       .send({ email: 'alice@test.com' });
 
     expect(res.status).toBe(400);
+  });
+});
+
+describe('GET /api/auth/me', () => {
+  it('returns current user from valid token', async () => {
+    const token = jwt.sign({ userId: 'user-1', email: 'alice@test.com', role: 'DEVELOPER' }, SECRET, { expiresIn: '1h' });
+    mockedPrisma.user.findUnique.mockResolvedValue({
+      id: 'user-1', email: 'alice@test.com', githubLogin: 'alice',
+      role: 'DEVELOPER', createdAt: new Date(),
+    } as never);
+
+    const res = await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.email).toBe('alice@test.com');
+  });
+
+  it('returns 401 when no token is provided', async () => {
+    const res = await request(app).get('/api/auth/me');
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 401 for an invalid token', async () => {
+    const res = await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', 'Bearer not.a.valid.token');
+
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 404 when user no longer exists in database', async () => {
+    const token = jwt.sign({ userId: 'gone-user', email: 'gone@test.com', role: 'DEVELOPER' }, SECRET, { expiresIn: '1h' });
+    mockedPrisma.user.findUnique.mockResolvedValue(null);
+
+    const res = await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(404);
   });
 });
