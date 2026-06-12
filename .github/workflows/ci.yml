@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Test (Node 20)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: codereviewbot_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm ci
+      - run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://postgres:test@localhost:5432/codereviewbot_test
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test:coverage
+        env:
+          DATABASE_URL_TEST: postgresql://postgres:test@localhost:5432/codereviewbot_test
+          GITHUB_WEBHOOK_SECRET: test-secret-for-ci
+          NODE_ENV: test
+
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm ci
+      - run: npm audit --audit-level=high
+      - run: npx eslint src/ --rule '{"no-eval": "error"}' --max-warnings=0
+
+  build:
+    name: Build
+    needs: [test, security]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm ci
+      - run: npm run build
+      - name: Build frontend
+        working-directory: frontend
+        run: npm ci && npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  deploy:
+    name: Deploy (main only)
+    needs: [build]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy to Railway / Render
+        run: echo "Deploy step — configured per hosting provider"

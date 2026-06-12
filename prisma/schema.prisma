@@ -1,0 +1,116 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id          String       @id @default(cuid())
+  githubLogin String       @unique
+  email       String?
+  role        Role         @default(DEVELOPER)
+  createdAt   DateTime     @default(now())
+  repos       Repository[] @relation("RepoMembers")
+}
+
+model Repository {
+  id           String    @id @default(cuid())
+  githubRepoId Int       @unique
+  owner        String
+  name         String
+  installId    String
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  members      User[]    @relation("RepoMembers")
+  reviews      Review[]
+  rulesets     Ruleset[]
+}
+
+model Review {
+  id           String       @id @default(cuid())
+  prNumber     Int
+  prTitle      String
+  prAuthor     String
+  prUrl        String
+  baseBranch   String
+  headBranch   String
+  status       ReviewStatus @default(PENDING)
+  startedAt    DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime     @default(now())
+  repositoryId String
+  repository   Repository   @relation(fields: [repositoryId], references: [id])
+  findings     Finding[]
+}
+
+model Finding {
+  id         String   @id @default(cuid())
+  filePath   String
+  lineStart  Int
+  lineEnd    Int?
+  category   Category
+  severity   Severity
+  ruleId     String
+  message    String
+  suggestion String
+  suppressed Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  reviewId   String
+  review     Review   @relation(fields: [reviewId], references: [id])
+  rule       Rule     @relation(fields: [ruleId], references: [id])
+
+  @@index([reviewId])
+  @@index([severity])
+  @@index([category])
+}
+
+model Rule {
+  id              String    @id @default(cuid())
+  slug            String    @unique
+  name            String
+  description     String
+  category        Category
+  defaultSeverity Severity
+  enabled         Boolean   @default(true)
+  findings        Finding[]
+  rulesets        Ruleset[]
+}
+
+model Ruleset {
+  id           String     @id @default(cuid())
+  name         String
+  repositoryId String
+  repository   Repository @relation(fields: [repositoryId], references: [id])
+  rules        Rule[]
+  overrides    Json
+}
+
+enum Role {
+  ADMIN
+  DEVELOPER
+  VIEWER
+}
+
+enum ReviewStatus {
+  PENDING
+  RUNNING
+  COMPLETE
+  FAILED
+}
+
+enum Category {
+  SECURITY
+  PERFORMANCE
+  STYLE
+}
+
+enum Severity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+  INFO
+}
