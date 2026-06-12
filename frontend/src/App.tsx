@@ -1,8 +1,11 @@
-import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { ProtectedRoute } from './components/ProtectedRoute';
 import { DashboardPage } from './pages/DashboardPage';
 import { ReviewDetailPage } from './pages/ReviewDetailPage';
 import { ConfigurationPage } from './pages/ConfigurationPage';
 import { TeamManagementPage } from './pages/TeamManagementPage';
+import { LoginPage } from './pages/LoginPage';
 
 function NavItem({ to, label }: { to: string; label: string }) {
   return (
@@ -22,12 +25,32 @@ function NavItem({ to, label }: { to: string; label: string }) {
   );
 }
 
+function UserMenu() {
+  const { user, logout } = useAuth();
+  if (!user) return null;
+  return (
+    <div className="ml-auto flex items-center gap-3">
+      <div className="flex items-center gap-2">
+        <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center text-white text-xs font-bold">
+          {(user.email ?? 'U')[0]?.toUpperCase()}
+        </div>
+        <span className="text-blue-100 text-sm hidden sm:block">{user.email}</span>
+      </div>
+      <button
+        onClick={logout}
+        className="text-blue-200 hover:text-white text-xs px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors"
+      >
+        Sign out
+      </button>
+    </div>
+  );
+}
+
 function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-slate-50">
       <nav className="bg-gradient-to-r from-blue-700 to-indigo-700 shadow-lg">
         <div className="max-w-7xl mx-auto px-6 py-3 flex items-center gap-3">
-          {/* Logo mark */}
           <div className="flex items-center gap-2 mr-6">
             <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center shadow-inner">
               <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -40,6 +63,7 @@ function Layout({ children }: { children: React.ReactNode }) {
           <NavItem to="/" label="Dashboard" />
           <NavItem to="/settings/rules" label="Rules" />
           <NavItem to="/settings/team" label="Team" />
+          <UserMenu />
         </div>
       </nav>
       <main className="max-w-7xl mx-auto px-6 py-8">{children}</main>
@@ -47,17 +71,36 @@ function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
+function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route
+        path="/*"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <Routes>
+                <Route path="/" element={<DashboardPage />} />
+                <Route path="/reviews/:reviewId" element={<ReviewDetailPage />} />
+                <Route path="/settings/rules" element={<ConfigurationPage />} />
+                <Route path="/settings/team" element={<TeamManagementPage />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+    </Routes>
+  );
+}
+
 export default function App() {
   return (
     <BrowserRouter>
-      <Layout>
-        <Routes>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/reviews/:reviewId" element={<ReviewDetailPage />} />
-          <Route path="/settings/rules" element={<ConfigurationPage />} />
-          <Route path="/settings/team" element={<TeamManagementPage />} />
-        </Routes>
-      </Layout>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
     </BrowserRouter>
   );
 }

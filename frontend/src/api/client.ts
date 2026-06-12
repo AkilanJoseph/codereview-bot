@@ -6,10 +6,19 @@ interface ApiResponse<T> {
   error: { code: string; message: string } | null;
 }
 
+function getToken(): string | null {
+  return localStorage.getItem('auth_token');
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const token = getToken();
   const res = await fetch(`${BASE_URL}${path}`, {
     ...options,
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options?.headers,
+    },
   });
   const body = (await res.json()) as ApiResponse<T>;
   if (body.error) throw new Error(body.error.message);
@@ -78,7 +87,20 @@ export interface User {
   createdAt: string;
 }
 
+export interface AuthUser {
+  id: string;
+  email: string | null;
+  role: 'ADMIN' | 'DEVELOPER' | 'VIEWER';
+}
+
 export const api = {
+  auth: {
+    register: (body: { email: string; password: string; githubLogin?: string; role?: string }) =>
+      request<{ token: string; user: AuthUser }>('/api/auth/register', { method: 'POST', body: JSON.stringify(body) }),
+    login: (email: string, password: string) =>
+      request<{ token: string; user: AuthUser }>('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+    me: () => request<AuthUser>('/api/auth/me'),
+  },
   repos: {
     list: (active?: boolean) =>
       request<Repository[]>(`/api/repos${active !== undefined ? `?active=${active}` : ''}`),
