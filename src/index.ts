@@ -3,7 +3,9 @@ import express from 'express';
 import cors from 'cors';
 import { apiRateLimiter } from './api/middleware/rateLimiter';
 import { errorHandler } from './api/middleware/errorHandler';
+import { requireAuth } from './api/middleware/authMiddleware';
 import webhookRouter from './api/routes/webhooks';
+import authRouter from './api/routes/auth';
 import reposRouter from './api/routes/repos';
 import reviewsRouter from './api/routes/reviews';
 import findingsRouter from './api/routes/findings';
@@ -24,14 +26,9 @@ app.use(cors({ origin: allowedOrigins }));
 app.use(apiRateLimiter);
 app.use(express.json());
 
-// Routes
+// Public routes — no auth required
 app.use('/api/webhooks', webhookRouter);
-app.use('/api/repos', reposRouter);
-app.use('/api/reviews', reviewsRouter);
-app.use('/api/findings', findingsRouter);
-app.use('/api/rules', rulesRouter);
-app.use('/api/users', usersRouter);
-
+app.use('/api/auth', authRouter);
 app.get('/api/health', async (_req, res) => {
   try {
     await prisma.$queryRaw`SELECT 1`;
@@ -40,6 +37,14 @@ app.get('/api/health', async (_req, res) => {
     res.status(503).json({ data: { status: 'degraded', db: 'disconnected', version: '1.0.0' }, meta: null, error: null });
   }
 });
+
+// Protected routes — JWT required
+app.use(requireAuth);
+app.use('/api/repos', reposRouter);
+app.use('/api/reviews', reviewsRouter);
+app.use('/api/findings', findingsRouter);
+app.use('/api/rules', rulesRouter);
+app.use('/api/users', usersRouter);
 
 app.use(errorHandler);
 
