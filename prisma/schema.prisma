@@ -10,8 +10,9 @@ datasource db {
 model User {
   id          String       @id @default(cuid())
   githubLogin String       @unique
-  email       String?
-  role        Role         @default(DEVELOPER)
+  email        String?
+  passwordHash String?
+  role         Role         @default(DEVELOPER)
   createdAt   DateTime     @default(now())
   repos       Repository[] @relation("RepoMembers")
 }
