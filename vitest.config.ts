@@ -11,6 +11,8 @@ export default defineConfig({
       exclude: [
         'src/generated/**',
         'src/db/seed.ts',
+        'src/db/client.ts',
+        'src/mcp/server.ts',
         'src/__fixtures__/**',
         'src/**/__tests__/**',
       ],

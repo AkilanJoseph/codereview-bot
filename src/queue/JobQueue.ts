@@ -14,7 +14,7 @@ export interface AnalysisJob {
 
 type JobHandler = (job: AnalysisJob) => Promise<void>;
 
-class JobQueue extends EventEmitter {
+export class JobQueue extends EventEmitter {
   private handlers = new Map<string, JobHandler>();
 
   enqueue(job: AnalysisJob): void {

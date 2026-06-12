@@ -2,10 +2,10 @@ import type { IScanner } from '../../IScanner';
 import type { Finding, PrFile } from '../../types';
 
 // innerHTML / outerHTML assigned a non-literal value (variable or expression).
-const INNER_HTML_PATTERN = /\.(?:inner|outer)HTML\s*=\s*(?!['"`])/g;
+const INNER_HTML_PATTERN = /\.(?:inner|outer)HTML\s*=\s*(?!\s*['"`])/g;
 
 // document.write with a non-literal argument.
-const DOC_WRITE_PATTERN = /document\.write(?:ln)?\s*\(\s*(?!['"`])/g;
+const DOC_WRITE_PATTERN = /document\.write(?:ln)?\s*\(\s*(?!\s*['"`])/g;
 
 // React dangerouslySetInnerHTML used with a variable (not a string literal object).
 const DANGEROUS_HTML_PATTERN = /dangerouslySetInnerHTML\s*=\s*\{(?!\s*\{\s*__html\s*:\s*['"`])/g;
