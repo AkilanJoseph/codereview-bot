@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "codereview-bot": {
+      "command": "npx",
+      "args": ["tsx", "src/mcp/server.ts"],
+      "cwd": "C:\\Users\\akilan.joseph\\Projects\\codereview-bot",
+      "env": {
+        "DATABASE_URL": "postgresql://postgres:Akilan@123@localhost:5432/codereviewbot"
+      }
+    }
+  }
+}
